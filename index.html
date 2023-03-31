@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Vuruwhere</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.13.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.13.0/mapbox-gl.js"></script>
+    <!-- Load the `mapbox-gl-geocoder` plugin. -->
+    <script
+        src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.min.js"></script>
+    <link rel="stylesheet"
+        href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.css"
+        type="text/css">
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+        }
+
+        button {
+            display: block;
+            margin-bottom: 15px;
+        }
+
+        #map {
+            width: 100%;
+            flex-grow: 1;
+            height: 100%;
+        }
+
+        #container {
+            display: flex;
+            height: 100%;
+        }
+
+        #sidebar {
+            width: 300px;
+            height: 100%;
+            flex-shrink: 0;
+            padding: 30px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="container">
+        <div id="sidebar">
+            <button id="fly-to-cucphuong">Fly to Vuon QG Cuc Phuong</button>
+            <button id="fit-to-cp">Fit to cuc phuong</button>
+            <button id="reset-view">Reset</button>
+        </div>
+        <div id="map"></div>
+    </div>
+    <script>
+        //mapbox api
+        const INITIAL_CENTER = [105.4194488, 19.6385741]
+        const INITIAL_ZOOM = 6
+        mapboxgl.accessToken = 'pk.eyJ1IjoiaW1tYXR0YW8iLCJhIjoiY2xmOHgzcGVlMjBzYTN2bGVmbXVxcjJ5byJ9.sICcXaDfOvKZLmoyiuEigw';
+        const map = new mapboxgl.Map({
+            container: 'map', // container ID
+            // Choose from Mapbox's core styles, or make your own style with Mapbox Studio
+            style: 'mapbox://styles/mapbox/light-v11', // style URL
+            center: INITIAL_CENTER, // starting position [lng, lat]
+            zoom: INITIAL_ZOOM // starting zoom
+        });
+
+        // Add the control to the map.
+        map.addControl(
+            new MapboxGeocoder({
+                accessToken: mapboxgl.accessToken,
+                mapboxgl: mapboxgl
+            })
+        );
+
+        //data
+        const farms = [
+            {
+                name: 'Vườn rừng sinh thái Làng Xanh',
+                color: '#59a868',
+                lngLat: [105.407641, 18.695491]
+            },
+            {
+                name: 'Vườn rừng Bản Thổ',
+                color: '#5965a8',
+                lngLat: [105.4194488, 19.6385741]
+            },
+            {
+                name: 'Vườn Rừng Tân Lạc',
+                color: '#dec05f',
+                lngLat: [105.282387, 20.6345863]
+            }
+        ]
+
+        farms.forEach(({ name, color, lngLat }) => {
+            // create the popup
+            const popup = new mapboxgl.Popup({ offset: 25 }).setText(name);
+
+            // add marker to the map
+            new mapboxgl.Marker({
+                color,
+                scale: 0.7
+            })
+                .setLngLat(lngLat)
+                .setPopup(popup) // sets a popup on this marker
+                .addTo(map);
+        })
+        // // create the popup
+        // const popup = new mapboxgl.Popup({ offset: 25 }).setText(
+        //     'Vườn rừng nhà cô Lam.'
+        // );
+
+        // // Create a default Marker and add it to the map.
+        // const marker1 = new mapboxgl.Marker({
+        //     color: '#fc7f03',
+        //     scale: 0.7
+        // })
+        //     .setLngLat([105.582733, 18.629654])
+        //     .setPopup(popup) // sets a popup on this marker
+        //     .addTo(map);
+
+        map.on('load', () => {
+            //add a source layer for vuon qgia
+            map.addSource('vuonqgia', {
+                type: 'geojson',
+                data: 'data/khu-bao-ton-quoc-gia.geojson'
+            });
+
+            map.addLayer({
+                id: 'vuonqgia-fill',
+                type: 'fill',
+                source: 'vuonqgia',
+                paint: {
+                    'fill-color': [
+                        'match',
+                        ['get', "IUCN_CAT"],
+                        "Vườn quốc gia",
+                        'green',
+                        "Không biết",
+                        'purple',
+                        "Bảo tồn loài/sinh cảnh",
+                        'orange',
+                        "Bảo tồn cảnh quan",
+                        'blue',
+                        'steelblue'
+                    ],
+                    'fill-opacity': 0.7
+                }
+            }, 'road-label-simple')
+            map.addLayer({
+                id: 'vuonqgia-line',
+                type: 'line',
+                source: 'vuonqgia',
+                paint: {
+                    'line-color': 'black',
+                    'line-width': 0.5
+                }
+            }, 'road-label-simple')
+            map.on('click', (e) => {
+                console.log('click', e.point)
+                const [selectedvqg] = map.queryRenderedFeatures(e.point, {
+                    layers: ['vuonqgia-fill']
+                });
+
+                if (selectedvqg) {
+                    const { IUCN_CAT, Ten } = selectedvqg.properties
+                    alert(`Đây là ${IUCN_CAT} ${Ten}`)
+                }
+            })
+        })
+        //fly to vqg cuc phuong
+        document.querySelector('#fly-to-cucphuong').addEventListener('click', () => {
+            map.flyTo({
+                center: [105.619463, 20.318591],
+                zoom: 10.3,
+                pitch: 45
+            })
+        })
+
+        //reset map view
+        document.querySelector('#reset-view').addEventListener('click', () => {
+            map.flyTo({
+                center: INITIAL_CENTER,
+                zoom: INITIAL_ZOOM,
+                pitch: 0
+            })
+        })
+
+        //fit to vqg cuc phuong
+        document.querySelector('#fit-to-cp').addEventListener('click', () => {
+            map.fitBounds([
+                [105.743921, 20.236258], //southeastern corner
+                [105.436521, 20.413027] //northwestern corner
+            ])
+        })
+    </script>
+
+</body>
+
+</html>
